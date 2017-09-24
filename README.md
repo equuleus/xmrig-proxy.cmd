@@ -1,5 +1,5 @@
 # xmrig-proxy.cmd
-Windows Batch Script for automated start XMRig Proxy with parameters
+Windows Batch Script for automated start XMRig Proxy (https://github.com/xmrig/xmrig-proxy) with parameters
 
 Run with currently available parameters: "xmrig-proxy.cmd MONERO" or "xmrig-proxy.cmd SUMOKOIN". 
 If parameter not set, will use a default setting (MONERO).
