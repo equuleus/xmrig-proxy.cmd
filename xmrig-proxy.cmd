@@ -1,13 +1,17 @@
 @ECHO OFF
+REM RUN EXAMPLES:
+REM	xmrig-proxy.cmd
+REM	xmrig-proxy.cmd MONERO
+REM	xmrig-proxy.cmd SUMOKOIN
 SETLOCAL ENABLEEXTENSIONS
 CLS
 TITLE XMRig Proxy
 
-SET POOL_MONERO=pool.minemonero.pro
+SET POOL_MONERO=pool.monero.hashvault.pro
 SET PORT_MONERO=5555
 SET WALLET_MONERO=4...
 
-SET POOL_SUMOKOIN=pool.sumomining.pro
+SET POOL_SUMOKOIN=pool.sumokoin.hashvault.pro
 SET PORT_SUMOKOIN=5555
 SET WALLET_SUMOKOIN=Sumo...
 
@@ -21,23 +25,45 @@ SET EMAIL=user@server.com
 SET PROXY_ADDRESS=0.0.0.0
 SET PROXY_PORT=5555
 
+SET ALLOW_MANUAL_SELECT=true
+
 SET SRC=%~dp0
 SET PROGRAM_TITLE=XMRig Proxy
 SET PROGRAM_PATH=%SRC:~0,-1%
 SET PROGRAM_FILENAME=xmrig-proxy.exe
 
-SET TASKKILL=%SystemRoot%\System32\taskkill.exe
+SET CSCRIPT=%SystemRoot%\System32\cscript.exe
 SET TASKLIST=%SystemRoot%\System32\tasklist.exe
+SET TASKKILL=%SystemRoot%\System32\taskkill.exe
 
-CALL :SELECT %1
+IF "%1" EQU "ELEVATE" (
+	CALL :SELECT %2
+) ELSE (
+	CALL :SELECT %1
+)
+CLS
 
 SET PROGRAM_PARAMETERS=--url=%POOL%:%PORT% --user=%WALLET%+%DIFF% --pass=%ID%:%EMAIL% --keepalive --bind %PROXY_ADDRESS%:%PROXY_PORT%
 
-SET CSCRIPT=%SystemRoot%\System32\cscript.exe
-
 IF EXIST "%PROGRAM_PATH%\%PROGRAM_FILENAME%" (
 	IF EXIST "%CSCRIPT%" (
-		CALL :TEST %1
+		IF "%1" EQU "ELEVATE" (
+			CALL :TEST "ELEVATE" "%2"
+		) ELSE (
+			IF "%1" EQU "MONERO" (
+				CALL :TEST "NONE" "%1"
+			) ELSE IF "%1" EQU "SUMOKOIN" (
+				CALL :TEST "NONE" "%1"
+			) ELSE (
+				IF "%COIN%" EQU "1" (
+					CALL :TEST "NONE" "MONERO"
+				) ELSE IF "%COIN%" EQU "2" (
+					CALL :TEST "NONE" "SUMOKOIN"
+				) ELSE (
+					GOTO END
+				)
+			)
+		)
 	) ELSE (
 		CALL :START
 	)
@@ -59,35 +85,76 @@ GOTO END
 			SET PORT=%PORT_DEFAULT%
 			SET WALLET=%WALLET_DEFAULT%
 		)
+		GOTO END
 	) ELSE (
-		SET POOL=%POOL_DEFAULT%
-		SET PORT=%PORT_DEFAULT%
-		SET WALLET=%WALLET_DEFAULT%
+		IF "%ALLOW_MANUAL_SELECT%" EQU "true" (
+			SET /P COIN="Please select a coin [Monero/Sumokoin] [1/2]: "
+		) ELSE (
+			SET POOL=%POOL_DEFAULT%
+			SET PORT=%PORT_DEFAULT%
+			SET WALLET=%WALLET_DEFAULT%
+			GOTO END
+		)
+	)
+	IF "%~1" EQU "" (
+		IF "%ALLOW_MANUAL_SELECT%" EQU "true" (
+			IF "%COIN%" EQU "1" (
+				CALL :SELECT "MONERO"
+			) ELSE IF "%COIN%" EQU "2" (
+				CALL :SELECT "SUMOKOIN"
+			) ELSE (
+				ECHO Select is not correct. Please input "1" or "2". Try again...
+				ECHO.
+				GOTO :SELECT
+			)
+		)
 	)
 GOTO END
 
 :TEST
 	NET SESSION >NUL 2>&1
 	IF "%ERRORLEVEL%" EQU "0" (
-		CALL :START
+		CALL :START "ELEVATE"
 	) ELSE (
-		ECHO CreateObject^("Shell.Application"^).ShellExecute "%~snx0","%~1","%~sdp0","runas","%PROGRAM_TITLE%">"%TEMP%\%PROGRAM_FILENAME%.vbs"
-		%CSCRIPT% //nologo "%TEMP%\%PROGRAM_FILENAME%.vbs"
-		IF EXIST "%TEMP%\%PROGRAM_FILENAME%.vbs" DEL "%TEMP%\%PROGRAM_FILENAME%.vbs"
+		IF "%~1" EQU "ELEVATE" (
+			IF NOT EXIST "%TASKLIST%" (
+				CALL :START
+			) ELSE (
+				IF NOT EXIST "%TASKKILL%" CALL :START
+			)
+		) ELSE (
+			IF EXIST "%TASKLIST%" (
+				IF EXIST "%TASKKILL%" CALL :START
+			)
+			CALL :ELEVATE %~2
+		)
 	)
+GOTO END
+
+:ELEVATE
+	ECHO CreateObject^("Shell.Application"^).ShellExecute "%~snx0","ELEVATE %~1","%~sdp0","runas","%PROGRAM_TITLE%">"%TEMP%\%PROGRAM_FILENAME%.vbs"
+	%CSCRIPT% //nologo "%TEMP%\%PROGRAM_FILENAME%.vbs"
+	IF EXIST "%TEMP%\%PROGRAM_FILENAME%.vbs" DEL "%TEMP%\%PROGRAM_FILENAME%.vbs"
 GOTO END
 
 :START
 	CALL :CHECK
 	CD "%PROGRAM_PATH%"
-	CALL "%PROGRAM_PATH%\%PROGRAM_FILENAME%" %PROGRAM_PARAMETERS%
-rem	START "%PROGRAM_TITLE%" /D "%PROGRAM_PATH%" "%PROGRAM_FILENAME%" %PROGRAM_PARAMETERS%
+	IF "%~1" EQU "ELEVATE" (
+		CALL "%PROGRAM_PATH%\%PROGRAM_FILENAME%" %PROGRAM_PARAMETERS%
+	) ELSE (
+		START "%PROGRAM_TITLE%" /D "%PROGRAM_PATH%" "%PROGRAM_FILENAME%" %PROGRAM_PARAMETERS%
+	)
 GOTO END
 
 :CHECK
-	FOR /F "tokens=2 delims=," %%A IN ('%TASKLIST% /FI "ImageName EQ %PROGRAM_FILENAME%" /FO:CSV /NH^| FIND /I "%PROGRAM_FILENAME%"') DO SET TASK_PID=%%~A
+	IF EXIST "%TASKLIST%" (
+		FOR /F "tokens=2 delims=," %%A IN ('%TASKLIST% /FI "ImageName EQ %PROGRAM_FILENAME%" /FO:CSV /NH^| FIND /I "%PROGRAM_FILENAME%"') DO SET TASK_PID=%%~A
+	)
 	IF "%TASK_PID%" NEQ "" (
-		%TASKKILL% /F /IM "%PROGRAM_FILENAME%">NUL
+		IF EXIST "%TASKKILL%" (
+			%TASKKILL% /F /IM "%PROGRAM_FILENAME%">NUL
+		)
 	)
 GOTO END
 
