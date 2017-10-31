@@ -1,12 +1,12 @@
 # xmrig-proxy.cmd
 Windows Batch Script for automated start XMRig Proxy (https://github.com/xmrig/xmrig-proxy) with parameters
 
-Run with currently available parameters: "xmrig-proxy.cmd MONERO" or "xmrig-proxy.cmd SUMOKOIN". 
+Run with available parameters: "xmrig-proxy.cmd MONERO" or "xmrig-proxy.cmd SUMOKOIN". If you run it without any params (and "ALLOW_MANUAL_SELECT" set to "true") you can manually select what ever you want to run.
 
 If parameter not set, will use a default setting (MONERO).
 
 If proxy ("xmrig-proxy.exe" file) already started, it will be automatically closed (killed process).
 
-Don't forget to change "WALLET" in a CMD. Good luck!
+Don't forget to change "WALLET_MONERO" ("WALLET_SUMOKOIN") in a CMD to your personal wallets and other params at your choice. Good luck!
 
-P.S. Known bug: if cmd run without administartor rights it will try to get it and restart. You can chahge ":TEST" to ":START" in a 40 line of code to run it without admin rights check and elevate. Should fix it in a few days.
+No one known bug currently.
