@@ -401,8 +401,7 @@ REM Функция создания параметров коммандной с
 	CALL :PARAMETERS_POOL_GET
 	CALL :PARAMETERS_POOL_TO_STRING
 REM Добавляем в строку параметров для программы полученные данные по пулам:
-	SET VARIABLE[PROGRAM][PARAMETERS]=%VARIABLE[PROGRAM][PARAMETERS]% %VARIABLE[PROGRAM][PARAMETERS][POOL][URL]% %VARIABLE[PROGRAM][PARAMETERS][POOL][USER]% %VARIABLE[PROGRAM][PARAMETERS][POOL][PASS]% %VARIABLE[PROGRAM][PARAMETERS][POOL][CUSTOM-DIFF]%
-	SET VARIABLE[PROGRAM][PARAMETERS]=%VARIABLE[PROGRAM][PARAMETERS]% %VARIABLE[PROGRAM][PARAMETERS][PROXY]%
+	SET VARIABLE[PROGRAM][PARAMETERS]=%VARIABLE[PROGRAM][PARAMETERS][PROXY]% %VARIABLE[PROGRAM][PARAMETERS][POOL]%
 REM Добавляем в строку параметров для программы данные по умолчанию, указанные в конфигурации (если там что-то есть):
 	IF "%SETTINGS[DEFAULT][PARAMETERS]%" NEQ "" SET VARIABLE[PROGRAM][PARAMETERS]=%VARIABLE[PROGRAM][PARAMETERS]% %SETTINGS[DEFAULT][PARAMETERS]%
 GOTO END
@@ -490,60 +489,47 @@ REM Определяем стартовое значение счетчика (�
 	IF NOT DEFINED VARIABLE[PARAMETERS][COUNT] SET /A VARIABLE[PARAMETERS][COUNT]=1
 REM Перебираем весь массив и проверяем, задано ли значение NAME:
 	IF DEFINED VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][NAME] (
-		IF NOT DEFINED VARIABLE[PROGRAM][PARAMETERS][POOL][URL] (
-			CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][URL]=--url=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][ADDRESS]%%:%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][PORT]%%
-		) ELSE (
-			CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][URL]=%VARIABLE[PROGRAM][PARAMETERS][POOL][URL]% --url=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][ADDRESS]%%:%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][PORT]%%
-		)
-REM Параметры "DIFF", "ID", "EMAIL" и "WALLET" используются только от первого обнаруженного пула, все остальные параметры игнорируются и не задаются повторно:
-REM Получаем значение WALLET для выбранного пула и присваиваем его переменной для удобства использования и проверок:
-		CALL SET VARIABLE[PROGRAM][PARAMETERS][VALUE][WALLET]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][WALLET]%%
-REM Получаем значение DIFF для выбранного пула и присваиваем его переменной для удобства использования и проверок:
-		CALL SET VARIABLE[PROGRAM][PARAMETERS][VALUE][DIFF]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][DIFF]%%
-REM Если значение блока "--user" не задано, то присваиваем ранее полученные значения:
-		IF NOT DEFINED VARIABLE[PROGRAM][PARAMETERS][POOL][USER] (
-			CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][USER]=--user=!VARIABLE[PROGRAM][PARAMETERS][VALUE][WALLET]!+!VARIABLE[PROGRAM][PARAMETERS][VALUE][DIFF]!
-		) ELSE (
-REM Если это уже не первый проход цикла, то есть пулов для данной монеты несколько, то проверяем на предмет повторов, если дубликат единого значения задан, выводим сообщение и игнорируем его:
-			IF %VARIABLE[PARAMETERS][COUNT]% GTR 1 (
-				IF "!VARIABLE[PROGRAM][PARAMETERS][VALUE][WALLET]!" NEQ "" (
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][ADDRESS]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][ADDRESS]%%
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][PORT]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][PORT]%%
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][WALLET]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][WALLET]%%
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][DIFF]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][DIFF]%%
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][ID]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][ID]%%
+		CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][EMAIL]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][EMAIL]%%
+		IF "!VARIABLE[PROGRAM][PARAMETERS][POOL][ADDRESS]!" NEQ "" (
+			IF "!VARIABLE[PROGRAM][PARAMETERS][POOL][PORT]!" NEQ "" (
+				IF "!VARIABLE[PROGRAM][PARAMETERS][POOL][WALLET]!" NEQ "" (
+					IF "!VARIABLE[PROGRAM][PARAMETERS][POOL][ID]!" NEQ "" (
+						CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][STRING]=--url=!VARIABLE[PROGRAM][PARAMETERS][POOL][ADDRESS]!:!VARIABLE[PROGRAM][PARAMETERS][POOL][PORT]! --user=!VARIABLE[PROGRAM][PARAMETERS][POOL][WALLET]!+!VARIABLE[PROGRAM][PARAMETERS][POOL][DIFF]! --pass=!VARIABLE[PROGRAM][PARAMETERS][POOL][ID]!:!VARIABLE[PROGRAM][PARAMETERS][POOL][EMAIL]!
+					) ELSE (
+						CALL :TIMESTAMP
+						CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Parameter "ID" in configuration was not set for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^. Pool will not be added to list.
+					)
+				) ELSE (
 					CALL :TIMESTAMP
-					CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Duplicate parameter "WALLET" in configuration was set for coin "%VARIABLE[CHECK][VALUE][COIN]%" ^(for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^). Ignored.
+					CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Parameter "WALLET" in configuration was not set for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^. Pool will not be added to list.
 				)
+			) ELSE (
+				CALL :TIMESTAMP
+				CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Parameter "PORT" in configuration was not set for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^. Pool will not be added to list.
 			)
-		)
-REM Если значение блока "--custom-diff" не задано, то присваиваем ранее полученное значение:
-		IF NOT DEFINED VARIABLE[PROGRAM][PARAMETERS][POOL][CUSTOM-DIFF] (
-			CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][CUSTOM-DIFF]=--custom-diff=!VARIABLE[PROGRAM][PARAMETERS][VALUE][DIFF]!
 		) ELSE (
-			IF %VARIABLE[PARAMETERS][COUNT]% GTR 1 (
-REM Если это уже не первый проход цикла, то есть пулов для данной монеты несколько, то проверяем на предмет повторов, если дубликат единого значения задан, выводим сообщение и игнорируем его:
-				IF "!VARIABLE[PROGRAM][PARAMETERS][VALUE][DIFF]!" NEQ "" (
-					CALL :TIMESTAMP
-					CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Duplicate parameter "DIFF" in configuration was set for coin "%VARIABLE[CHECK][VALUE][COIN]%" ^(for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^). Ignored.
-				)
-			)
+			CALL :TIMESTAMP
+			CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Parameter "ADDRESS" in configuration was not set for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^. Pool will not be added to list.
 		)
-REM Получаем значение ID для выбранного пула и присваиваем его переменной для удобства использования и проверок:
-		CALL SET VARIABLE[PROGRAM][PARAMETERS][VALUE][ID]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][ID]%%
-REM Получаем значение EMAIL для выбранного пула и присваиваем его переменной для удобства использования и проверок:
-		CALL SET VARIABLE[PROGRAM][PARAMETERS][VALUE][EMAIL]=%%VARIABLE[PARAMETERS][POOL][%VARIABLE[PARAMETERS][COUNT]%][EMAIL]%%
-REM Если значение блока "--pass" не задано, то присваиваем ранее полученные значения:
-		IF NOT DEFINED VARIABLE[PROGRAM][PARAMETERS][POOL][PASS] (
-			CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL][PASS]=--pass=!VARIABLE[PROGRAM][PARAMETERS][VALUE][ID]!:!VARIABLE[PROGRAM][PARAMETERS][VALUE][EMAIL]!
-		) ELSE (
-REM Если это уже не первый проход цикла, то есть пулов для данной монеты несколько, то проверяем на предмет повторов, если дубликат единого значения задан, выводим сообщение и игнорируем его:
-			IF %VARIABLE[PARAMETERS][COUNT]% GTR 1 (
-				IF "!VARIABLE[PROGRAM][PARAMETERS][VALUE][ID]!" NEQ "" (
-					CALL :TIMESTAMP
-					CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Duplicate parameter "ID" in configuration was set for coin "%VARIABLE[CHECK][VALUE][COIN]%" ^(for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^). Ignored.
-				)
-				IF "!VARIABLE[PROGRAM][PARAMETERS][VALUE][EMAIL]!" NEQ "" (
-					CALL :TIMESTAMP
-					CALL ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Duplicate parameter "EMAIL" in configuration was set for coin "%VARIABLE[CHECK][VALUE][COIN]%" ^(for pool: "%%VARIABLE[PARAMETERS][POOL][!VARIABLE[PARAMETERS][COUNT]!][NAME]%%"^). Ignored.
-				)
+		IF "!VARIABLE[PROGRAM][PARAMETERS][POOL][STRING]!" NEQ "" (
+			IF NOT DEFINED VARIABLE[PROGRAM][PARAMETERS][POOL] (
+				CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL]=!VARIABLE[PROGRAM][PARAMETERS][POOL][STRING]!
+			) ELSE (
+				CALL SET VARIABLE[PROGRAM][PARAMETERS][POOL]=%VARIABLE[PROGRAM][PARAMETERS][POOL]% !VARIABLE[PROGRAM][PARAMETERS][POOL][STRING]!
 			)
+			SET VARIABLE[PROGRAM][PARAMETERS][POOL][STRING]=
 		)
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][EMAIL]=
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][ID]=
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][DIFF]=
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][WALLET]=
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][PORT]=
+		SET VARIABLE[PROGRAM][PARAMETERS][POOL][URL]=
 REM Увеличиваем значение счетчика и переходим в начало цикла:
 		SET /A VARIABLE[PARAMETERS][COUNT]=%VARIABLE[PARAMETERS][COUNT]% + 1
 		GOTO :PARAMETERS_POOL_TO_STRING
