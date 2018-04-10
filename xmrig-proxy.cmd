@@ -10,16 +10,18 @@ TITLE XMRig Proxy
 REM Задаем путь, имя файла и расширение для файла конфигурации:
 SET VARIABLE[CONFIG][PATH]=%~dp0
 SET VARIABLE[CONFIG][FILENAME]=%~n0
-SET VARIABLE[CONFIG][EXTENSION]=cfg.cmd
+SET VARIABLE[CONFIG][EXTENSION]=cfg
 REM Получаем параметры коммандной строки:
 SET VARIABLE[INPUT][COMMAND_PARAMETERS]=%*
 
-IF EXIST "%CONFIG_PATH%\%CONFIG_FILENAME%.%CONFIG_EXTENSION%" (
+IF EXIST "%VARIABLE[CONFIG][PATH]%\%VARIABLE[CONFIG][FILENAME]%.%VARIABLE[CONFIG][EXTENSION]%" (
 	CALL :TIMESTAMP
 	ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO]	Starting...
 	ECHO.
 REM Загружаем данные конфигурации:
-	CALL %VARIABLE[CONFIG][PATH]%\%VARIABLE[CONFIG][FILENAME]%.%VARIABLE[CONFIG][EXTENSION]% > NUL
+	FOR /F "usebackq" %%A IN ("%VARIABLE[CONFIG][PATH]%\%VARIABLE[CONFIG][FILENAME]%.%VARIABLE[CONFIG][EXTENSION]%") DO (
+		CALL SET %%A
+	)
 	IF EXIST "!SETTINGS[PROGRAM][PATH]!\!SETTINGS[PROGRAM][FILENAME]!" (
 		CALL :INIT
 REM Создаем список полученных данных по прокси:
@@ -35,14 +37,14 @@ REM Создаем список полученных данных по пула�
 		CALL :CONFIG_ARRAY_LIST
 		ECHO.
 		IF EXIST "%SETTINGS[PROGRAM][CSCRIPT]%" (
-			IF /I "%VARIABLE[INPUT][ELEVATE]%"=="TRUE" (
+			IF /I "%VARIABLE[INPUT][ELEVATE]%" EQU "TRUE" (
 				NET SESSION >NUL 2>&1
 				IF "%ERRORLEVEL%" EQU "0" CALL :START "ELEVATE"
 			) ELSE (
 				CALL :START
 			)
 		) ELSE (
-			IF /I "%VARIABLE[INPUT][ELEVATE]%"=="TRUE" (
+			IF /I "%VARIABLE[INPUT][ELEVATE]%" EQU "TRUE" (
 				NET SESSION >NUL 2>&1
 				IF "%ERRORLEVEL%" EQU "0" (
 					CALL :START "ELEVATE"
@@ -61,7 +63,7 @@ REM Создаем список полученных данных по пула�
 	)
 ) ELSE (
 	CALL :TIMESTAMP
-	ECHO !VARIABLE[TIMESTAMP][VALUE]!	[CONFIG][ERROR]	CONFIGURATION FILE ^("%CONFIG_PATH%\%CONFIG_FILENAME%.%CONFIG_EXTENSION%"^) NOT FOUND^^!
+	ECHO !VARIABLE[TIMESTAMP][VALUE]!	[CONFIG][ERROR]	CONFIGURATION FILE ^("%VARIABLE[CONFIG][PATH]%\%VARIABLE[CONFIG][FILENAME]%.%VARIABLE[CONFIG][EXTENSION]%"^) NOT FOUND^^!
 )
 GOTO END
 
@@ -72,9 +74,9 @@ REM Перебираем в цикле все значения через про
 REM Присваиваем временной переменной текущее значение:
 		SET VARIABLE[INPUT][TEMP]=%%A
 REM Проверяем на совпадение начало строки параметра, если совпадение найдено, то присваиваем значение:
-		IF /I "!VARIABLE[INPUT][TEMP]:~0,8!"=="--proxy=" SET VARIABLE[INPUT][PROXY]=!VARIABLE[INPUT][TEMP]:~8!
-		IF /I "!VARIABLE[INPUT][TEMP]:~0,7!"=="--coin=" SET VARIABLE[INPUT][COIN]=!VARIABLE[INPUT][TEMP]:~7!
-		IF /I "!VARIABLE[INPUT][TEMP]:~0,10!"=="--elevate=" SET VARIABLE[INPUT][ELEVATE]=!VARIABLE[INPUT][TEMP]:~10!
+		IF /I "!VARIABLE[INPUT][TEMP]:~0,8!" EQU "--proxy=" SET VARIABLE[INPUT][PROXY]=!VARIABLE[INPUT][TEMP]:~8!
+		IF /I "!VARIABLE[INPUT][TEMP]:~0,7!" EQU "--coin=" SET VARIABLE[INPUT][COIN]=!VARIABLE[INPUT][TEMP]:~7!
+		IF /I "!VARIABLE[INPUT][TEMP]:~0,10!" EQU "--elevate=" SET VARIABLE[INPUT][ELEVATE]=!VARIABLE[INPUT][TEMP]:~10!
 		SET VARIABLE[INPUT][TEMP]=
 REM Если в строке еще что-то есть, повторяем цикл:
 		IF "%%B" NEQ "" (
@@ -169,20 +171,14 @@ GOTO END
 
 REM Функция проверки выбора ввода:
 :CHECK
-REM Определяем стартовое значение счетчика (если это первый проход и оно не задано), задаем тип поиска и искомое значение:
+REM Определяем стартовые значения счетчиков [счетчик количества проходов в цикле и счетчик положения в массиве] (если это первый проход и оно не задано), задаем тип поиска и искомое значение:
+	IF NOT DEFINED VARIABLE[CHECK][RETRY] SET /A VARIABLE[CHECK][RETRY]=1
 	IF NOT DEFINED VARIABLE[CHECK][COUNT] (
 		SET /A VARIABLE[CHECK][COUNT]=1
 REM Проверяем параметр запуска функции и задаем необходимые переменные (если они не получены ранее):
-		IF "%~1" EQU "PROXY" (
-			SET VARIABLE[CHECK][TYPE]=PROXY
-			SET VARIABLE[CHECK][VALUE_TEST]=%VARIABLE[INPUT][PROXY]%
-		)
-		IF "%~1" EQU "COIN" (
-			SET VARIABLE[CHECK][TYPE]=COIN
-			SET VARIABLE[CHECK][VALUE_TEST]=%VARIABLE[INPUT][COIN]%
-		)
+		SET VARIABLE[CHECK][TYPE]=%~1
+		CALL SET VARIABLE[CHECK][VALUE_TEST]=%VARIABLE[INPUT][!VARIABLE[CHECK][TYPE]!]%
 	)
-	IF NOT DEFINED VARIABLE[CHECK][TYPE] GOTO :END
 REM Если получено какое-то значение...
 	IF "%VARIABLE[CHECK][VALUE_TEST]%" NEQ "" (
 		GOTO :CHECK_INPUT_SET_TRUE
@@ -193,6 +189,7 @@ REM Если значение не задано:
 REM Очищаем значения:
 	SET VARIABLE[CHECK][VALUE_TEST]=
 	SET VARIABLE[CHECK][TYPE]=
+	SET VARIABLE[CHECK][RETRY]=
 GOTO END
 :CHECK_INPUT_SET_TRUE
 	IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
@@ -222,16 +219,12 @@ REM Повторно пробуем задать значение или бер�
 GOTO END
 :CHECK_INPUT_SET_TRUE_DEFINED_TRUE
 REM Проверяем на свопадение текущего значения из массива и ранее заданного искомого:
-	IF /I "%VARIABLE[CHECK][VALUE_CURRENT]%"=="%VARIABLE[CHECK][VALUE_TEST]%" (
+	IF /I "%VARIABLE[CHECK][VALUE_CURRENT]%" EQU "%VARIABLE[CHECK][VALUE_TEST]%" (
 REM Извещаем об успешном нахождении:
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][STATUS]	Selected "!VARIABLE[CHECK][VALUE_CURRENT]!" proxy.
-		)
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][STATUS]	Selected "!VARIABLE[CHECK][VALUE_CURRENT]!" coin.
-		)
+		CALL :LOWERCASE %VARIABLE[CHECK][TYPE]%
+		CALL :TIMESTAMP
+		ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][STATUS]	Selected "!VARIABLE[CHECK][VALUE_CURRENT]!" !VARIABLE[LOWERCASE][VALUE]!.
+		SET VARIABLE[LOWERCASE][VALUE]=
 REM Задаем искомое значение:
 		SET VARIABLE[CHECK][VALUE]=%VARIABLE[CHECK][VALUE_CURRENT]%
 REM Выходим:
@@ -239,9 +232,10 @@ REM Выходим:
 		SET VARIABLE[CHECK][VALUE_TEST]=
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
+		SET VARIABLE[CHECK][RETRY]=
 		GOTO :END
 	) ELSE (
-REM Увеличиваем значение счетчика и переходим в начало цикла:
+REM Увеличиваем значение счетчика положения в массиве и переходим в начало цикла:
 		SET /A VARIABLE[CHECK][COUNT]=%VARIABLE[CHECK][COUNT]% + 1
 		SET VARIABLE[CHECK][VALUE_CURRENT]=
 		GOTO :CHECK
@@ -249,82 +243,94 @@ REM Увеличиваем значение счетчика и переходи
 GOTO END
 :CHECK_INPUT_SET_TRUE_DEFINED_FALSE
 REM Если задана возможность ручного ввода данных:
-	IF /I "%SETTINGS[DEFAULT][ALLOW_MANUAL_SELECT]%"=="TRUE" (
+	IF /I "%SETTINGS[DEFAULT][ALLOW_MANUAL_SELECT]%" EQU "TRUE" (
+		CALL :LOWERCASE %VARIABLE[CHECK][TYPE]%
+		CALL :TIMESTAMP
+		ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INPUT][ERROR]	Selected "%VARIABLE[CHECK][VALUE_TEST]%" is not correct !VARIABLE[LOWERCASE][VALUE]!. Please, try again...
+		ECHO.
+REM Сбрасываем неправильное значение:
+		SET VARIABLE[CHECK][VALUE_TEST]=
+REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
+		CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
+		CALL :TIMESTAMP
 REM Получаем значение из консоли:
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INPUT][ERROR]	Select "%VARIABLE[CHECK][VALUE_TEST]%" is not correct proxy. Please, try again...
-			ECHO.
-REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-			CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
-			SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a proxy !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
-		)
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INPUT][ERROR]	Select "%VARIABLE[CHECK][VALUE_TEST]%" is not correct coin. Please, try again...
-			ECHO.
-REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-			CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
-			SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a coin !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
-		)
-REM Сбрасываем счетчик в начальное положение:
+		SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a !VARIABLE[LOWERCASE][VALUE]! (<ENTER> for default value) !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
+		SET VARIABLE[LOWERCASE][VALUE]=
+REM Увеличиваем счетчик проходов:
+		SET /A VARIABLE[CHECK][RETRY]=%VARIABLE[CHECK][RETRY]% + 1
+REM Сбрасываем счетчик положения в массиве в начальное положение:
 		SET /A VARIABLE[CHECK][COUNT]=1
 REM Снова проходим тестирование на совпадение:
 		GOTO :CHECK
 REM Если возможность ручного ввода запрещена, то берем значение по умолчанию:
 	) ELSE (
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Selected "%VARIABLE[CHECK][VALUE_TEST]%" is not correct proxy. Default value ^("%SETTINGS[DEFAULT][PROXY]%"^) was set.
-			SET VARIABLE[CHECK][VALUE]=%SETTINGS[DEFAULT][PROXY]%
-		)
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Selected "%VARIABLE[CHECK][VALUE_TEST]%" is not correct coin. Default value ^("%SETTINGS[DEFAULT][COIN]%"^) was set.
-			SET VARIABLE[CHECK][VALUE]=%SETTINGS[DEFAULT][COIN]%
-		)
-		ECHO.
-REM Сбрасываем счетчик и выходим:
+		CALL :CHECK_INPUT_AUTOMATIC_TEST %VARIABLE[CHECK][TYPE]% %%SETTINGS[DEFAULT][%VARIABLE[CHECK][TYPE]%]%%
+REM Сбрасываем счетчики и выходим:
 		SET VARIABLE[CHECK][VALUE_TEST]=
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
+		SET VARIABLE[CHECK][RETRY]=
 		GOTO :END
 	)
 GOTO END
 :CHECK_INPUT_SET_FALSE
 REM Если задана возможность ручного ввода данных:
-	IF /I "%SETTINGS[DEFAULT][ALLOW_MANUAL_SELECT]%"=="TRUE" (
+	IF /I "%SETTINGS[DEFAULT][ALLOW_MANUAL_SELECT]%" EQU "TRUE" (
+		CALL :LOWERCASE %VARIABLE[CHECK][TYPE]%
+REM Если это не первый проход цикла и ввод пустой, предлагаем ввести значение по умолчанию:
+		IF %VARIABLE[CHECK][RETRY]% GEQ 2 (
+			CALL :TIMESTAMP
 REM Получаем значение из консоли:
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-			CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
-			SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a proxy !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
+			CALL SET /P VARIABLE[CHECK][DEFAULT]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	You choice is empty. Use dafault !VARIABLE[LOWERCASE][VALUE]! value ^(%%SETTINGS[DEFAULT][%VARIABLE[CHECK][TYPE]%]%%^) [Y/N]: "
+			IF /I "!VARIABLE[CHECK][DEFAULT]!" EQU "Y" (
+REM Если ответ положительный, запоминаем значение и возвращаемся для проверки:
+				CALL SET VARIABLE[CHECK][VALUE_TEST]=%%SETTINGS[DEFAULT][%VARIABLE[CHECK][TYPE]%]%%
+				SET VARIABLE[CHECK][DEFAULT]=
+				GOTO :CHECK
+			) ELSE (
+				SET VARIABLE[CHECK][DEFAULT]=
+			)
+			ECHO.
 		)
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
 REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-			CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
-			SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a coin !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
-		)
-REM Сбрасываем счетчик в начальное положение:
+		CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
+		CALL :TIMESTAMP
+REM Получаем значение из консоли:
+		SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a !VARIABLE[LOWERCASE][VALUE]! (<ENTER> for default value) !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
+		SET VARIABLE[LOWERCASE][VALUE]=
+REM Увеличиваем счетчик проходов:
+		SET /A VARIABLE[CHECK][RETRY]=%VARIABLE[CHECK][RETRY]% + 1
+REM Сбрасываем счетчик положения в массиве в начальное положение:
 		SET /A VARIABLE[CHECK][COUNT]=1
 REM Снова проходим тестирование на совпадение:
 		GOTO :CHECK
 REM Если возможность ручного ввода запрещена, то берем значение по умолчанию:
 	) ELSE (
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Value for proxy not found. Default value ^("%SETTINGS[DEFAULT][PROXY]%"^) was set.
-			SET VARIABLE[CHECK][VALUE]=%SETTINGS[DEFAULT][PROXY]%
-		)
-		IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
-			CALL :TIMESTAMP
-			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Value for coin not found. Default value ^("%SETTINGS[DEFAULT][COIN]%"^) was set.
-			SET VARIABLE[CHECK][VALUE]=%SETTINGS[DEFAULT][COIN]%
-		)
-REM Сбрасываем счетчик и выходим:
+
+		CALL :CHECK_INPUT_AUTOMATIC_TEST %VARIABLE[CHECK][TYPE]% %%SETTINGS[DEFAULT][%VARIABLE[CHECK][TYPE]%]%%
+REM Сбрасываем счетчики и выходим:
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
+		SET VARIABLE[CHECK][RETRY]=
 		GOTO :END
+	)
+GOTO END
+:CHECK_INPUT_AUTOMATIC_TEST
+	IF "%VARIABLE[CHECK][TYPE]%" EQU "%~1" (
+		CALL :LOWERCASE %~1
+		IF "%VARIABLE[CHECK][RETRY]%" EQU "1" (
+			CALL :TIMESTAMP
+			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[INFO][ERROR]	Input value not found. Default value ^("--!VARIABLE[LOWERCASE][VALUE]!=%~2"^) was set.
+			SET VARIABLE[LOWERCASE][VALUE]=
+			SET VARIABLE[CHECK][VALUE_TEST]=%~2
+REM Увеличиваем счетчик проходов:
+			SET /A VARIABLE[CHECK][RETRY]=%VARIABLE[CHECK][RETRY]% + 1
+			GOTO :CHECK
+		) ELSE (
+			CALL :TIMESTAMP
+			ECHO !VARIABLE[TIMESTAMP][VALUE]!	[CONFIG][ERROR][CRITICAL] Default value ^("--!VARIABLE[LOWERCASE][VALUE]!=%~2"^) does not match with configuration set. Exiting.
+			EXIT
+		)
 	)
 GOTO END
 REM Функция формирования текста для подсказки выбора:
@@ -332,16 +338,9 @@ REM Функция формирования текста для подсказк
 REM Определяем стартовое значение счетчика (если это первый проход и оно не задано), обнуляем на всякий случай значение результата и задаем тип поиска:
 	IF NOT DEFINED VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT] (
 		SET /A VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT]=1
+		SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][TYPE]=%~1
 		SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]=
-		IF "%~1" EQU "PROXY" (
-			SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][TYPE]=PROXY
-		)
-		IF "%~1" EQU "COIN" (
-			SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][TYPE]=COIN
-		)
 	)
-REM Проверяем параметр запуска функции и задаем необходимые переменные (если они не получены ранее):
-	IF NOT DEFINED VARIABLE[CHECK][INPUT][TEXT_FORMAT][TYPE] GOTO :END
 REM Задаем начальное значение текста:
 	IF NOT DEFINED VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE] SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]=[
 	IF "%VARIABLE[CHECK][INPUT][TEXT_FORMAT][TYPE]%" EQU "PROXY" (
@@ -449,7 +448,7 @@ REM Если заданная монета пула совпадает с тем
 REM Получем значение алгоритма для текущего пула:
 			CALL SET VARIABLE[PARAMETERS][POOL][CURRENT][ALGORYTM]=%%SETTINGS[POOL][%VARIABLE[PARAMETERS][COUNT]%][ALGORYTM]%%
 REM Проверяем, совпадают-ли алгоритмы с тем, который задан в прокси:
-			IF /I "!VARIABLE[PARAMETERS][POOL][CURRENT][ALGORYTM]!"=="%VARIABLE[PARAMETERS][PROXY][ALGORYTM]%" (
+			IF /I "!VARIABLE[PARAMETERS][POOL][CURRENT][ALGORYTM]!" EQU "%VARIABLE[PARAMETERS][PROXY][ALGORYTM]%" (
 REM Формируем новый список (массив) пулов, которые нам подходят для использования
 				CALL SET VARIABLE[PARAMETERS][POOL][%%VARIABLE[PARAMETERS][POOL][COUNT]%%][NAME]=%%SETTINGS[POOL][%VARIABLE[PARAMETERS][COUNT]%][NAME]%%
 				CALL SET VARIABLE[PARAMETERS][POOL][%%VARIABLE[PARAMETERS][POOL][COUNT]%%][ALGORYTM]=%%SETTINGS[POOL][%VARIABLE[PARAMETERS][COUNT]%][ALGORYTM]%%
@@ -550,7 +549,6 @@ REM Получаем проверенные значения выбора:
 	ECHO.
 REM Формируем строку параметров для запуска программы:
 	CALL :PARAMETERS
-	ECHO.
 	CD "%SETTINGS[PROGRAM][PATH]%"
 REM В заивисимости от того задано ли повышение прав до уровня Администратора или нет, запускаем программу разными методами (в отлельном окне, или в том же самом):
 	IF "%~1" EQU "ELEVATE" (
@@ -564,6 +562,13 @@ REM В заивисимости от того задано ли повышени
 		ECHO.
 		START "%SETTINGS[PROGRAM][TITLE]%" /D "%SETTINGS[PROGRAM][PATH]%" "%SETTINGS[PROGRAM][FILENAME]%" %VARIABLE[PROGRAM][PARAMETERS]%
 	)
+GOTO END
+
+:LOWERCASE
+	SET VARIABLE[LOWERCASE][TEMP]=%~1
+	FOR %%A IN ("A=a" "B=b" "C=c" "D=d" "E=e" "F=f" "G=g" "H=h" "I=i" "J=j" "K=k" "L=l" "M=m" "N=n" "O=o" "P=p" "Q=q" "R=r" "S=s" "T=t" "U=u" "V=v" "W=w" "X=x" "Y=y" "Z=z") DO SET VARIABLE[LOWERCASE][TEMP]=!VARIABLE[LOWERCASE][TEMP]:%%~A!
+	SET VARIABLE[LOWERCASE][VALUE]=%VARIABLE[LOWERCASE][TEMP]%
+	SET VARIABLE[LOWERCASE][TEMP]=
 GOTO END
 
 REM Функция получения штампа времени (текущее время в специальном формате):
