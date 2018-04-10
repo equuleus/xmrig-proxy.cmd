@@ -5,3 +5,4 @@ Run with available parameters: "xmrig-proxy.cmd --proxy=<proxy_name> --coin=<coi
 If you run it without any params (and "ALLOW_MANUAL_SELECT" set to "true") you can manually select what ever you want to run.
 
 Don't forget to change a configuration file.
+![xmrig-proxy.cmd](https://github.com/equuleus/screenshots/blob/master/xmrig-proxy.cmd.png "xmrig-proxy.cmd")
