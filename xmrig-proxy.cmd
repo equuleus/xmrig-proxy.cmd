@@ -177,7 +177,7 @@ REM Определяем стартовые значения счетчиков 
 		SET /A VARIABLE[CHECK][COUNT]=1
 REM Проверяем параметр запуска функции и задаем необходимые переменные (если они не получены ранее):
 		SET VARIABLE[CHECK][TYPE]=%~1
-		CALL SET VARIABLE[CHECK][VALUE_TEST]=%VARIABLE[INPUT][!VARIABLE[CHECK][TYPE]!]%
+		CALL SET VARIABLE[CHECK][VALUE_TEST]=%%VARIABLE[INPUT][!VARIABLE[CHECK][TYPE]!]%%
 	)
 REM Если получено какое-то значение...
 	IF "%VARIABLE[CHECK][VALUE_TEST]%" NEQ "" (
