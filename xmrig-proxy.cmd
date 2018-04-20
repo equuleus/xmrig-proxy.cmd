@@ -206,7 +206,7 @@ REM Если заданная переменная текущего значен
 		) ELSE (
 			SET VARIABLE[CONFIG][COIN_LIST][VALUE_CURRENT]=
 			SET VARIABLE[CONFIG][COIN_LIST][VALUE_TEST]=
-			GOTO :END
+			GOTO END
 		)
 REM Если значение имени в массиве с текущим счетчиком не удалось прочитать, значит массив закончился, а искомого тестового значения мы так и не нашли:
 	) ELSE (
@@ -214,7 +214,7 @@ REM Добавляем тестовое значение в массив:
 		SET VARIABLE[CONFIG][COIN_LIST][ARRAY][%VARIABLE[CONFIG][COIN_LIST][COUNT]%][NAME]=!VARIABLE[CONFIG][COIN_LIST][VALUE_TEST]!
 		SET VARIABLE[CONFIG][COIN_LIST][VALUE_TEST]=
 		SET VARIABLE[CONFIG][COIN_LIST][COUNT]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 
@@ -245,32 +245,29 @@ REM Очищаем значения:
 GOTO END
 :CHECK_INPUT_SET_TRUE
 	IF "%VARIABLE[CHECK][TYPE]%" EQU "ACTION" (
-		CALL :CHECK_INPUT_SET_TRUE_IF_DEFINED %%SETTINGS[%VARIABLE[CHECK][TYPE]%][%VARIABLE[CHECK][COUNT]%][NAME]%%
+		CALL :CHECK_INPUT_SET_TRUE_DEFINED_TEST %%SETTINGS[%VARIABLE[CHECK][TYPE]%][%VARIABLE[CHECK][COUNT]%][NAME]%%
 	)
 	IF "%VARIABLE[CHECK][TYPE]%" EQU "PROXY" (
-		CALL :CHECK_INPUT_SET_TRUE_IF_DEFINED %%SETTINGS[%VARIABLE[CHECK][TYPE]%][%VARIABLE[CHECK][COUNT]%][NAME]%%
+		CALL :CHECK_INPUT_SET_TRUE_DEFINED_TEST %%SETTINGS[%VARIABLE[CHECK][TYPE]%][%VARIABLE[CHECK][COUNT]%][NAME]%%
 	)
 	IF "%VARIABLE[CHECK][TYPE]%" EQU "COIN" (
-		CALL :CHECK_INPUT_SET_TRUE_IF_DEFINED_COIN
+REM Перебираем весь массив и проверяем, задано ли значение NAME:
+		IF DEFINED VARIABLE[CONFIG][COIN_LIST][ARRAY][%VARIABLE[CHECK][COUNT]%][NAME] (
+REM Если значение есть, задаем его в переменной и проверяем дальше:
+			CALL SET VARIABLE[CHECK][VALUE_CURRENT]=%%VARIABLE[CONFIG][COIN_LIST][ARRAY][%VARIABLE[CHECK][COUNT]%][NAME]%%
+			GOTO :CHECK_INPUT_SET_TRUE_DEFINED_TRUE
+REM Если прошли весь массив значений монет, а выбранной записи так и не обнаружено:
+		) ELSE (
+REM Повторно пробуем задать значение или берем его из параметра по умолчанию:
+			GOTO :CHECK_INPUT_SET_TRUE_DEFINED_FALSE
+		)
 	)
 GOTO END
-:CHECK_INPUT_SET_TRUE_IF_DEFINED
+:CHECK_INPUT_SET_TRUE_DEFINED_TEST
 REM Перебираем весь массив и проверяем, задано ли значение NAME:
 	IF DEFINED SETTINGS[%VARIABLE[CHECK][TYPE]%][%VARIABLE[CHECK][COUNT]%][NAME] (
 REM Если значение есть, задаем его в переменной и проверяем дальше:
 		CALL SET VARIABLE[CHECK][VALUE_CURRENT]=%~1
-		GOTO :CHECK_INPUT_SET_TRUE_DEFINED_TRUE
-REM Если прошли весь массив значений монет, а выбранной записи так и не обнаружено:
-	) ELSE (
-REM Повторно пробуем задать значение или берем его из параметра по умолчанию:
-		GOTO :CHECK_INPUT_SET_TRUE_DEFINED_FALSE
-	)
-GOTO END
-:CHECK_INPUT_SET_TRUE_IF_DEFINED_COIN
-REM Перебираем весь массив и проверяем, задано ли значение NAME:
-	IF DEFINED VARIABLE[CONFIG][COIN_LIST][ARRAY][%VARIABLE[CHECK][COUNT]%][NAME] (
-REM Если значение есть, задаем его в переменной и проверяем дальше:
-		CALL SET VARIABLE[CHECK][VALUE_CURRENT]=%%VARIABLE[CONFIG][COIN_LIST][ARRAY][%VARIABLE[CHECK][COUNT]%][NAME]%%
 		GOTO :CHECK_INPUT_SET_TRUE_DEFINED_TRUE
 REM Если прошли весь массив значений монет, а выбранной записи так и не обнаружено:
 	) ELSE (
@@ -293,7 +290,7 @@ REM Выходим:
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
 		SET VARIABLE[CHECK][RETRY]=
-		GOTO :END
+		GOTO END
 	) ELSE (
 REM Увеличиваем значение счетчика положения в массиве и переходим в начало цикла:
 		SET /A VARIABLE[CHECK][COUNT]=%VARIABLE[CHECK][COUNT]% + 1
@@ -328,7 +325,7 @@ REM Сбрасываем счетчики и выходим:
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
 		SET VARIABLE[CHECK][RETRY]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 :CHECK_INPUT_SET_FALSE
@@ -378,7 +375,7 @@ REM Сбрасываем счетчики и выходим:
 		SET VARIABLE[CHECK][TYPE]=
 		SET VARIABLE[CHECK][COUNT]=
 		SET VARIABLE[CHECK][RETRY]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 :CHECK_INPUT_AUTOMATIC_TEST
@@ -505,7 +502,7 @@ REM Перебираем весь массив и проверяем, задан
 			CALL SET VARIABLE[PARAMETERS][PROXY][NO-RESTRICTED]=%%SETTINGS[PROXY][%VARIABLE[PARAMETERS][COUNT]%][NO-RESTRICTED]%%
 			SET VARIABLE[PARAMETERS][PROXY][CURRENT]=
 			SET VARIABLE[PARAMETERS][COUNT]=
-			GOTO :END
+			GOTO END
 		) ELSE (
 			SET /A VARIABLE[PARAMETERS][COUNT]=%VARIABLE[PARAMETERS][COUNT]% + 1
 			SET VARIABLE[PARAMETERS][PROXY][CURRENT]=
@@ -513,7 +510,7 @@ REM Перебираем весь массив и проверяем, задан
 		)
 	) ELSE (
 		SET VARIABLE[PARAMETERS][COUNT]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 :PARAMETERS_PROXY_TO_STRING
@@ -586,7 +583,7 @@ REM Если значения не совпадает, пропускаем да
 	) ELSE (
 REM Сбрасываем счетчик и выходим:
 		SET VARIABLE[PARAMETERS][COUNT]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 :PARAMETERS_POOL_TO_STRING
@@ -631,7 +628,7 @@ REM Увеличиваем значение счетчика и переходи
 	) ELSE (
 REM Сбрасываем счетчик и выходим:
 		SET VARIABLE[PARAMETERS][COUNT]=
-		GOTO :END
+		GOTO END
 	)
 GOTO END
 
@@ -683,21 +680,23 @@ REM Если процесс найден:
 					) ELSE (
 REM Проверяем, доступен ли заданный в конфигурации файл "TASKKILL":
 						IF EXIST "%SETTINGS[PROGRAM][TASKKILL]%" (
-							IF VARIABLE[ACTION][COUNT] GEQ %SETTINGS[DEFAULT][RETRY_MAXIMUM_ATTEMPTS]% (
-								CALL :LOG "[STATUS][ERROR][CRITICAL]	Can not stop already started process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^). Maximum attempts ^(%SETTINGS[DEFAULT][RETRY_MAXIMUM_ATTEMPTS]%^) reached while trying to stop a running process. Exiting."
-								SET VARIABLE[ACTION][COUNT]=
-								GOTO END
+							IF %VARIABLE[ACTION][COUNT]% EQU 1 (
+								CALL :LOG "[STATUS][INFO]	Found started process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^). Trying to stop it..."
 							) ELSE (
-								IF VARIABLE[ACTION][COUNT] EQU 1 (
-									CALL :LOG "[STATUS][INFO]	Found started process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^). Trying to stop it..."
+								IF %VARIABLE[ACTION][COUNT]% GEQ %SETTINGS[DEFAULT][RETRY_MAXIMUM_ATTEMPTS]% (
+									CALL :LOG "[STATUS][ERROR][CRITICAL]	Can not stop already started process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^). Maximum attempts ^(%SETTINGS[DEFAULT][RETRY_MAXIMUM_ATTEMPTS]%^) reached while trying to stop a running process. Exiting."
+									SET VARIABLE[ACTION][COUNT]=
+									GOTO END
 								) ELSE (
 									CALL :LOG "[STATUS][ERROR]	Can not stop already started process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^) for this instance. Retry attempt %VARIABLE[ACTION][COUNT]% of %SETTINGS[DEFAULT][RETRY_MAXIMUM_ATTEMPTS]%..."
 								)
-								CALL :ACTION_STOP
-								SET /A VARIABLE[ACTION][COUNT]=%VARIABLE[ACTION][COUNT]% + 1
-								CALL :TIMEWAIT 1
-								GOTO :ACTION
 							)
+							CALL :ACTION_STOP
+							SET VARIABLE[PROGRAM][PID][TASKLIST]=
+							SET VARIABLE[PROGRAM][PID][NETSTAT]=
+							SET /A VARIABLE[ACTION][COUNT]=%VARIABLE[ACTION][COUNT]% + 1
+							CALL :TIMEWAIT 1
+							GOTO :ACTION
 						) ELSE (
 							CALL :LOG "[STATUS][ERROR][CRITICAL]	Can not stop process ^(PID: ""!VARIABLE[PROGRAM][PID][TASKLIST]!""; Name: ""%SETTINGS[PROGRAM][XMRIG][FILENAME]%"" ; Port: ""%VARIABLE[PARAMETERS][PROXY][PORT]%""^), because ""TASKKILL"" file not found at ""%SETTINGS[PROGRAM][TASKKILL][PATH]%\%SETTINGS[PROGRAM][TASKKILL][FILENAME]%"". Please close and stop process manually. Exiting."
 						)
@@ -736,8 +735,9 @@ REM Получаем значение из консоли:
 							GOTO :ACTION
 						)
 					)
-				) ELSE (
-					CALL :LOG "[STATUS][ERROR][CRITICAL]	Requested proxy ""%VARIABLE[PARAMETERS][PROXY][NAME]%"" is not running (port ""%VARIABLE[PARAMETERS][PROXY][PORT]%"" not found in a process list), can not stop it. Exiting."
+				)
+				IF /I "%VARIABLE[CHECK][VALUE][ACTION]%" EQU "STOP" (
+					CALL :LOG "[STATUS][INFO]	Requested proxy ""%VARIABLE[PARAMETERS][PROXY][NAME]%"" was stopped. Exiting."
 				)
 			)
 		)
@@ -767,7 +767,7 @@ REM В заивисимости от того задано ли повышени
 	)
 GOTO END
 :ACTION_STOP
-	%SETTINGS[PROGRAM][TASKKILL]% /F /PID %VARIABLE[PROGRAM][PID][TASKLIST]%>NUL
+	%SETTINGS[PROGRAM][TASKKILL]% /F /PID %VARIABLE[PROGRAM][PID][TASKLIST]% >NUL
 GOTO END
 
 REM ===========================================================================
@@ -826,10 +826,10 @@ REM Проверяем задано ли значение временной з�
 	)
 REM Если файл TIMEOUT задан и существует, запускаем через него:
 	IF EXIST "%SETTINGS[PROGRAM][TIMEOUT]%" (
-		%SETTINGS[PROGRAM][TIMEOUT]% %VARIABLE[TIMEWAIT][VALUE]%>NUL
+		%SETTINGS[PROGRAM][TIMEOUT]% /T %VARIABLE[TIMEWAIT][VALUE]% >NUL
 REM Если файл не задан или не существует, то решаем задачу через встроенную возможность задать интервал в PING:
 	) ELSE (
-		PING 127.0.0.1 -n "%VARIABLE[TIMEWAIT][VALUE]%">NUL
+		PING 127.0.0.1 -n "%VARIABLE[TIMEWAIT][VALUE]%" >NUL
 	)
 REM Сбрасываем текущее значение:
 	SET VARIABLE[TIMEWAIT][VALUE]=
