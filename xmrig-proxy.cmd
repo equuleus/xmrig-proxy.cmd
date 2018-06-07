@@ -306,7 +306,7 @@ REM Если задана возможность ручного ввода да�
 REM Сбрасываем неправильное значение:
 		SET VARIABLE[CHECK][VALUE_TEST]=
 REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-		CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
+		CALL :CHECK_INPUT_TEXT_FORMAT_BASE "%VARIABLE[CHECK][TYPE]%"
 		CALL :TIMESTAMP
 REM Получаем значение из консоли:
 		SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a !VARIABLE[LOWERCASE][VALUE]! (<ENTER> for default value) !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
@@ -356,7 +356,7 @@ REM Если ответ положительный, запоминаем зна�
 			)
 		)
 REM Формируем текст подсказки для выбора из доступных в конфигурации пунктов:
-		CALL :CHECK_INPUT_TEXT_FORMAT "%VARIABLE[CHECK][TYPE]%"
+		CALL :CHECK_INPUT_TEXT_FORMAT_BASE "%VARIABLE[CHECK][TYPE]%"
 		CALL :TIMESTAMP
 REM Получаем значение из консоли:
 		SET /P VARIABLE[CHECK][VALUE_TEST]="!VARIABLE[TIMESTAMP][VALUE]!	[INPUT]	Please select a !VARIABLE[LOWERCASE][VALUE]! (<ENTER> for default value) !VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE]!: "
@@ -395,7 +395,7 @@ REM Увеличиваем счетчик проходов:
 	)
 GOTO END
 REM Функция формирования текста для подсказки выбора:
-:CHECK_INPUT_TEXT_FORMAT
+:CHECK_INPUT_TEXT_FORMAT_BASE
 REM Определяем стартовое значение счетчика (если это первый проход и оно не задано), обнуляем на всякий случай значение результата и задаем тип поиска:
 	IF NOT DEFINED VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT] (
 		SET /A VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT]=1
@@ -444,7 +444,7 @@ REM Добавляем к концу строки переменной найд�
 REM Обнуляем временную переменную, увеличиваем значение счетчика и переходим в начало цикла:
 	SET VARIABLE[CHECK][INPUT][TEXT_FORMAT][VALUE_CURRENT]=
 	SET /A VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT]=%VARIABLE[CHECK][INPUT][TEXT_FORMAT][COUNT]% + 1
-	GOTO :CHECK_INPUT_TEXT_FORMAT
+	GOTO :CHECK_INPUT_TEXT_FORMAT_BASE
 GOTO END
 :CHECK_INPUT_TEXT_FORMAT_DEFINED_FALSE
 REM Задаем окончательное значение текста:
@@ -880,6 +880,8 @@ REM Если файл существует, меняем значение фла
 		) ELSE (
 			ECHO "%VARIABLE[TIMESTAMP][VALUE]%	[CONFIG][ERROR]	Path for ""%SETTINGS[PROGRAM][LOG][PATH]%"" is empty."
 		)
+	) ELSE (
+		IF /I "%VARIABLE[LOG][TEXT]%" EQU "CLEAR" GOTO END
 	)
 REM Выводим информацию в консоль:
 	ECHO %VARIABLE[TIMESTAMP][VALUE]%	%VARIABLE[LOG][TEXT]%
